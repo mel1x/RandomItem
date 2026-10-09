@@ -15,7 +15,8 @@ $hashes = foreach ($target in $targets) {
             $toml -notmatch ('versionRange="\[' + [regex]::Escape($mc) + '\]"') -or $toml -match '\$\{') {
             throw "Incorrect metadata: $mc"
         }
-        foreach ($name in @('RandomItemMod','RandomItemCommand','CommandPermissions')) {
+        if (@($zip.Entries | Where-Object FullName -Match '/Smoke').Count) { throw "Test fixture leaked into $mc" }
+        foreach ($name in @('RandomItemMod','RandomItemCommand','CommandPermissions','OverflowItems')) {
             $class = $zip.GetEntry("com/example/randomitem/$name.class")
             if (!$class) { throw "Missing $name in $mc" }
             $stream = $class.Open()

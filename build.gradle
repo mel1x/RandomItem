@@ -17,6 +17,12 @@ sourceSets.main {
                     target.permissions == 'legacy' ? 'src/permissions-legacy/java' : 'src/permissions-modern/java',
                     mc == '26.3' ? 'src/drop-modern/java' : 'src/drop-legacy/java']
 }
+// Keep the mod descriptor and classes in one root for Forge's development scanner.
+sourceSets.main.output.resourcesDir = layout.buildDirectory.dir('classes/java/main').get().asFile
+tasks.named('processResources', ProcessResources) {
+    dependsOn tasks.named('compileJava')
+    destinationDir = sourceSets.main.output.resourcesDir
+}
 if (providers.gradleProperty('smokeTest').isPresent()) {
     sourceSets.main.java.srcDirs += ['src/smoke/java', target.eventbus == 6 ? 'src/smoke-forge6/java' : 'src/smoke-forge7/java']
 }
@@ -26,6 +32,7 @@ minecraft {
         configureEach {
             workingDir = layout.projectDirectory.dir("run/${mc}")
             systemProperty 'forge.enabledGameTestNamespaces', 'randomitem'
+            mods { register('randomitem') { source sourceSets.main } }
         }
         register('server') { args '--nogui' }
         register('gameTestServer')

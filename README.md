@@ -29,3 +29,6 @@ Use a JDK 25 to run Gradle. Gradle selects the target JDK through toolchains.
 The individual build is in `build/<minecraft>/libs`. The full release and SHA-256 checksums are collected in `dist`.
 
 The original 1.20.x source remains available at tag `1.20.x`.
+
+Server behavior tests are in src/smoke and can be run with scripts/smoke-test.ps1 after accepting the Minecraft server EULA in each test server directory. Test fixtures are excluded from published JARs.
+

@@ -11,12 +11,17 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
 
 public final class SmokeVerifier {
+    private static boolean checkingOverflow;
+    private static final java.util.List<ItemEntity> tossed = new java.util.ArrayList<>();
+    public static void recordDrop(ItemEntity entity) { if (checkingOverflow) tossed.add(entity); }
     public static void verify(MinecraftServer server) {
         try {
             var player = new ServerPlayer(server, server.overworld(),
                     new GameProfile(UUID.fromString("39e93820-d3bd-4085-9a06-d860e53e0c9b"), "RandomItemTest"),
                     ClientInformation.createDefault());
             var inventory = player.getInventory();
+            player.setPos(0, 100, 0);
+            server.overworld().getChunkAt(player.blockPosition());
             var dispatcher = server.getCommands().getDispatcher();
             var source = server.createCommandSourceStack().withEntity(player).withSuppressedOutput();
             if (dispatcher.getRoot().getChild("getRandomItem") == null) throw new AssertionError("Command not registered");
@@ -43,10 +48,13 @@ public final class SmokeVerifier {
             catch (CommandSyntaxException expected) { }
             inventory.clearContent();
             for (int i = 0; i < inventory.getContainerSize(); i++) inventory.setItem(i, new ItemStack(Items.BEDROCK, 64));
-            int before = server.overworld().getEntitiesOfClass(ItemEntity.class, player.getBoundingBox().inflate(2)).size();
+            tossed.clear();
+            checkingOverflow = true;
             dispatcher.execute("getRandomItem 27 1", source);
-            int after = server.overworld().getEntitiesOfClass(ItemEntity.class, player.getBoundingBox().inflate(2)).size();
-            if (after - before != 27) throw new AssertionError("Full inventory lost items");
+            checkingOverflow = false;
+            if (tossed.size() != 27 || tossed.stream().anyMatch(entity -> entity.getItem().getCount() != 1 || entity.isRemoved())) {
+                throw new AssertionError("Full inventory failed to toss 27 valid item entities: " + tossed.size());
+            }
             System.out.println("RANDOMITEM_SMOKE_PASS: defaults, counts, stack caps, argument bounds, console rejection, overflow");
             server.halt(false);
         } catch (Exception e) { throw new RuntimeException("RandomItem smoke test failed", e); }
