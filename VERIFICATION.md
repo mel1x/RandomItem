@@ -9,3 +9,11 @@
 - SHA-256 checksums for the exact published artifacts are included in SHA256SUMS.txt.
 
 Minecraft 1.21.2 has no Forge release and is not claimed as compatible.
+
+## NeoForge addition to 1.1
+
+- All five NeoForge targets (26.1, 26.1.1, 26.1.2, 26.2, 26.3) passed GitHub Actions run 37911631757 at commit 85d7c1cad0d14c5fc1c033ddbe231dbbe884b969.
+- Release NeoForge JARs are the artifacts from that run. Their NeoForge descriptors, exact Minecraft dependencies, loader dependency, implementation classes and Java 25 bytecode were checked; Forge descriptors and smoke fixtures are absent.
+- NeoForge dedicated-server smoke tests passed on 26.1 and 26.3: command registration, default selection, 27 selections, stack limits, invalid argument rejection, console rejection and 27 item tosses with a full inventory.
+- SHA256SUMS.txt covers all 20 published JARs (15 Forge and five NeoForge).
+- The original 1.1 tag identifies the Forge release source. NeoForge source is linked separately in the release notes to preserve that tag.
