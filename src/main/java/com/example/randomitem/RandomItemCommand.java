@@ -42,7 +42,7 @@ public final class RandomItemCommand {
             int limit = Math.min(maxStack, stack.getMaxStackSize());
             stack.setCount(RANDOM.nextInt(Math.max(1, limit)) + 1);
             player.getInventory().add(stack);
-            if (!stack.isEmpty()) player.drop(stack, false);
+            if (!stack.isEmpty()) OverflowItems.drop(player, stack);
         }
         player.inventoryMenu.broadcastChanges();
         return 1;

@@ -14,7 +14,11 @@ layout.buildDirectory = layout.projectDirectory.dir("build/${mc}")
 java.toolchain.languageVersion = JavaLanguageVersion.of(target.java as int)
 sourceSets.main {
     java.srcDirs = ['src/main/java', target.eventbus == 6 ? 'src/forge6/java' : 'src/forge7/java',
-                    target.permissions == 'legacy' ? 'src/permissions-legacy/java' : 'src/permissions-modern/java']
+                    target.permissions == 'legacy' ? 'src/permissions-legacy/java' : 'src/permissions-modern/java',
+                    mc == '26.3' ? 'src/drop-modern/java' : 'src/drop-legacy/java']
+}
+if (providers.gradleProperty('smokeTest').isPresent()) {
+    sourceSets.main.java.srcDirs += ['src/smoke/java', target.eventbus == 6 ? 'src/smoke-forge6/java' : 'src/smoke-forge7/java']
 }
 minecraft {
     if (mc.startsWith('1.')) mappings channel: 'official', version: mc
@@ -44,6 +48,7 @@ tasks.named('processResources', ProcessResources) {
     exclude 'pack.mcmeta'
 }
 tasks.named('jar', Jar) {
+    exclude 'com/example/randomitem/Smoke*.class'
     archiveVersion = ''
     manifest.attributes('Implementation-Version': project.version)
     preserveFileTimestamps = false
