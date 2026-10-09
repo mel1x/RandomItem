@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$EnvFile,
-    [ValidateSet('Modrinth','CurseForge')][string[]]$Platforms = @('Modrinth','CurseForge')
+    [ValidateSet('Modrinth','CurseForge')][string[]]$Platforms = @('Modrinth','CurseForge'),
+    [ValidateSet('forge','neoforge')][string]$Loader = 'forge'
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
@@ -11,7 +12,9 @@ foreach ($line in Get-Content -LiteralPath $EnvFile) {
         $tokens[$Matches[1]] = $Matches[2].Trim().Trim('"').Trim("'")
     }
 }
-$targets = Get-Content versions.json -Raw | ConvertFrom-Json
+$matrixFile = if ($Loader -eq 'neoforge') { 'versions-neoforge.json' } else { 'versions.json' }
+$targets = Get-Content $matrixFile -Raw | ConvertFrom-Json
+$loaderName = if ($Loader -eq 'neoforge') { 'NeoForge' } else { 'Forge' }
 $changelog = Get-Content CHANGELOG.md -Raw
 $receiptsFile = '.release/publication-receipts.json'
 $receipts = @()
@@ -28,18 +31,21 @@ if ('CurseForge' -in $Platforms) {
 }
 foreach ($target in $targets) {
     $mc = $target.minecraft
-    $file = Get-Item "dist/randomitem-1.1-forge-$mc.jar"
+    $file = Get-Item "dist/randomitem-1.1-$Loader-$mc.jar"
     $sha256 = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-    $displayName = "Random Items Command 1.1 (Forge $mc)"
+    $displayName = "Random Items Command 1.1 ($loaderName $mc)"
     foreach ($platform in $Platforms) {
-        $previous = @($receipts | Where-Object { $_.platform -eq $platform -and $_.minecraft -eq $mc })
+        $previous = @($receipts | Where-Object {
+            $receiptLoader = if ($_.loader) { $_.loader } else { 'forge' }
+            $_.platform -eq $platform -and $_.minecraft -eq $mc -and $receiptLoader -eq $Loader
+        })
         if ($previous) {
             if ($previous[0].sha256 -ne $sha256) { throw "Published JAR changed: $platform / $mc" }
             Write-Output "Already uploaded: $platform / $mc / $($previous[0].id)"
             continue
         }
         if ($platform -eq 'Modrinth') {
-            $versionNumber = "1.1-forge-$mc"
+            $versionNumber = "1.1-$Loader-$mc"
             $match = @($existing | Where-Object version_number -EQ $versionNumber)
             if ($match) {
                 $sha512 = (Get-FileHash $file.FullName -Algorithm SHA512).Hash.ToLowerInvariant()
@@ -49,7 +55,7 @@ foreach ($target in $targets) {
                 $data = @{
                     project_id='BmBsXMuV'; name=$displayName; version_number=$versionNumber;
                     changelog=$changelog; dependencies=@(); game_versions=@($mc); version_type='release';
-                    loaders=@('forge'); featured=$true; file_parts=@('file'); primary_file='file';
+                    loaders=@($Loader); featured=$true; file_parts=@('file'); primary_file='file';
                     status='listed'; environment='server_only_client_optional'
                 } | ConvertTo-Json -Depth 8 -Compress
                 $response = Invoke-RestMethod 'https://api.modrinth.com/v2/version' -Method Post -Headers $mrHeaders `
@@ -60,13 +66,14 @@ foreach ($target in $targets) {
         } else {
             $mcVersion = @($cfGameVersions | Where-Object { $_.name -eq $mc -and $_.gameVersionTypeID -notin @(1,615) })
             if ($mcVersion.Count -ne 1) { throw "Ambiguous CurseForge game version: $mc" }
-            $forgeId = ($cfGameVersions | Where-Object name -EQ 'Forge').id
+            $loaderId = @($cfGameVersions | Where-Object name -EQ $loaderName).id
+            if (@($loaderId).Count -ne 1) { throw "Unknown CurseForge loader: $loaderName" }
             $javaId = ($cfGameVersions | Where-Object name -EQ "Java $($target.java)").id
             $serverId = ($cfGameVersions | Where-Object name -EQ 'Server').id
             $clientId = ($cfGameVersions | Where-Object name -EQ 'Client').id
             $data = @{
                 changelog=$changelog; changelogType='markdown'; displayName=$displayName;
-                gameVersions=@($mcVersion[0].id,$forgeId,$javaId,$serverId,$clientId);
+                gameVersions=@($mcVersion[0].id,$loaderId,$javaId,$serverId,$clientId);
                 releaseType='release'; isMarkedForManualRelease=$false
             } | ConvertTo-Json -Depth 8 -Compress
             $response = Invoke-RestMethod 'https://minecraft.curseforge.com/api/projects/1232884/upload-file' `
@@ -75,7 +82,7 @@ foreach ($target in $targets) {
             $url = "https://www.curseforge.com/minecraft/mc-mods/random-items-command/files/$id"
         }
         if (!$id) { throw "Upload returned no file/version ID: $platform / $mc" }
-        $receipts += [pscustomobject]@{platform=$platform; minecraft=$mc; id=$id; url=$url; sha256=$sha256}
+        $receipts += [pscustomobject]@{platform=$platform; loader=$Loader; minecraft=$mc; id=$id; url=$url; sha256=$sha256}
         $receipts | ConvertTo-Json -Depth 8 | Set-Content $receiptsFile
         Write-Output "Uploaded: $platform / $mc / $url"
     }

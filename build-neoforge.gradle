@@ -1,0 +1,47 @@
+import groovy.json.JsonSlurper
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+def mc = providers.gradleProperty('minecraft_version').getOrElse('26.3')
+def target = new JsonSlurper().parse(file('versions-neoforge.json')).find { it.minecraft == mc }
+if (target == null) throw new GradleException("Unsupported NeoForge Minecraft version: ${mc}")
+version = '1.1'
+group = 'com.example.randomitem'
+base.archivesName = "randomitem-${version}-neoforge-${mc}"
+layout.buildDirectory = layout.projectDirectory.dir("build/neoforge/${mc}")
+java.toolchain.languageVersion = JavaLanguageVersion.of(target.java as int)
+sourceSets.main {
+    java.srcDirs = ['src/main/java', 'src/neoforge/java', 'src/permissions-modern/java',
+                    mc == '26.3' ? 'src/drop-modern/java' : 'src/drop-legacy/java']
+    resources.srcDirs = ['src/neoforge/resources']
+}
+if (providers.gradleProperty('smokeTest').isPresent()) {
+    sourceSets.main.java.srcDirs += ['src/smoke/java', 'src/smoke-neoforge/java']
+}
+neoForge {
+    version = target.neoforge
+    runs {
+        server {
+            server()
+            programArgument '--nogui'
+            gameDirectory = file("run/neoforge/${mc}")
+        }
+    }
+    mods {
+        randomitem { sourceSet(sourceSets.main) }
+    }
+}
+tasks.named('processResources', ProcessResources) {
+    def replacements = [mod_version: version, minecraft_version: mc, neoforge_version: target.neoforge]
+    inputs.properties replacements
+    filesMatching('META-INF/neoforge.mods.toml') { expand replacements }
+}
+tasks.named('jar', Jar) {
+    exclude 'com/example/randomitem/Smoke*.class'
+    archiveVersion = ''
+    manifest.attributes('Implementation-Version': project.version)
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

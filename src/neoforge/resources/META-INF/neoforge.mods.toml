@@ -1,0 +1,21 @@
+license="All Rights Reserved"
+issueTrackerURL="https://github.com/mel1x/RandomItem/issues"
+[[mods]]
+modId="randomitem"
+version="${mod_version}"
+displayName="Random Items Command"
+displayURL="https://modrinth.com/mod/random-items-cmd"
+authors="Mel1x"
+description='''Adds /getRandomItem [count] [maxStack] to give random vanilla and modded items.'''
+[[dependencies.randomitem]]
+modId="neoforge"
+type="required"
+versionRange="[${neoforge_version},)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.randomitem]]
+modId="minecraft"
+type="required"
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"

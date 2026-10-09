@@ -1,13 +1,19 @@
+$loaders = @('forge','neoforge')
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$targets = Get-Content versions.json -Raw | ConvertFrom-Json
-$hashes = foreach ($target in $targets) {
+foreach ($loader in $loaders) {
+$matrixFile = if ($loader -eq 'neoforge') { 'versions-neoforge.json' } else { 'versions.json' }
+$targets = Get-Content $matrixFile -Raw | ConvertFrom-Json
+foreach ($target in $targets) {
     $mc = $target.minecraft
-    $file = Get-Item "dist/randomitem-1.1-forge-$mc.jar"
+    $file = Get-Item "dist/randomitem-1.1-$loader-$mc.jar"
     $zip = [IO.Compression.ZipFile]::OpenRead($file.FullName)
     try {
-        $entry = $zip.GetEntry('META-INF/mods.toml')
+        $descriptor = if ($loader -eq 'neoforge') { 'META-INF/neoforge.mods.toml' } else { 'META-INF/mods.toml' }
+        $otherDescriptor = if ($loader -eq 'neoforge') { 'META-INF/mods.toml' } else { 'META-INF/neoforge.mods.toml' }
+        if ($zip.GetEntry($otherDescriptor)) { throw "Wrong loader descriptor: $loader / $mc" }
+        $entry = $zip.GetEntry($descriptor)
         if (!$entry) { throw "Missing mods.toml: $mc" }
         $reader = [IO.StreamReader]::new($entry.Open())
         try { $toml = $reader.ReadToEnd() } finally { $reader.Dispose() }
@@ -24,9 +30,12 @@ $hashes = foreach ($target in $targets) {
             $major = $header[6] * 256 + $header[7]
             if ($major -ne $target.java + 44) { throw "Wrong Java bytecode: $mc / $major" }
         }
-        $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        "$hash  $($file.Name)"
-        Write-Host "Verified Minecraft $mc (Java $($target.java))"
+        if ($toml -notmatch ('modId="' + $loader + '"')) { throw "Missing loader dependency: $loader / $mc" }
+        Write-Host "Verified $loader / Minecraft $mc (Java $($target.java))"
     } finally { $zip.Dispose() }
+}
+}
+$hashes = Get-ChildItem dist/randomitem-1.1-*.jar | Sort-Object Name | ForEach-Object {
+    "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
 }
 $hashes | Set-Content dist/SHA256SUMS.txt

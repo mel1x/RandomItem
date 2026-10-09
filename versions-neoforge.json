@@ -1,0 +1,7 @@
+[
+  { "minecraft": "26.1", "neoforge": "26.1.0.19-beta", "java": 25 },
+  { "minecraft": "26.1.1", "neoforge": "26.1.1.15-beta", "java": 25 },
+  { "minecraft": "26.1.2", "neoforge": "26.1.2.114", "java": 25 },
+  { "minecraft": "26.2", "neoforge": "26.2.0.88", "java": 25 },
+  { "minecraft": "26.3", "neoforge": "26.3.0.58-beta", "java": 25 }
+]
