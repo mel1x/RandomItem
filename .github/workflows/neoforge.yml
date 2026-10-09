@@ -1,0 +1,33 @@
+name: Build NeoForge
+on:
+  push:
+    paths:
+      - 'build-neoforge.gradle'
+      - 'settings.gradle'
+      - 'versions-neoforge.json'
+      - 'src/**'
+      - '.github/workflows/neoforge.yml'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft: ['26.1', '26.1.1', '26.1.2', '26.2', '26.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: bash gradlew build -Ploader=neoforge -Pminecraft_version=${{ matrix.minecraft }} --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: randomitem-neoforge-${{ matrix.minecraft }}
+          path: build/neoforge/${{ matrix.minecraft }}/libs/*.jar
+          if-no-files-found: error
